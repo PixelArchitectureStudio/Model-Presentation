@@ -1,5 +1,5 @@
 import '@google/model-viewer';
-import { fetchIssueComments } from './github.js';
+import { fetchIssueComments, findViewIssue } from './github.js';
 
 const $ = (selector) => document.querySelector(selector);
 const viewer = $('#clientViewer');
@@ -33,19 +33,31 @@ function formatDate(value) {
 async function showComments(view) {
   const list = $('#commentsList');
   list.innerHTML = '<div class="comments-empty">Loading comments…</div>';
-  if (!view.issueNumber) {
-    list.innerHTML = '<div class="comments-empty">No discussion thread for this view.</div>';
-    $('#addComment').hidden = true;
-    return;
-  }
   const { owner, name } = state.project.repository;
-  $('#addComment').hidden = false;
-  $('#addComment').href = `https://github.com/${owner}/${name}/issues/${view.issueNumber}`;
   try {
-    const comments = await fetchIssueComments(owner, name, view.issueNumber);
+    const issue = view.issueNumber
+      ? { number: view.issueNumber, html_url: `https://github.com/${owner}/${name}/issues/${view.issueNumber}`, body: '' }
+      : await findViewIssue(owner, name, state.project.slug, view.id);
+    $('#addComment').hidden = false;
+    if (!issue) {
+      const title = `[${state.project.slug}:${view.id}] ${view.name}`;
+      const body = `Client discussion for ${state.project.name} — camera view ${view.name}.`;
+      $('#addComment').href = `https://github.com/${owner}/${name}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+      $('#addComment').textContent = 'Start discussion on GitHub';
+      $('#commentCount').textContent = '0';
+      list.innerHTML = '<div class="comments-empty">No client discussion yet.</div>';
+      return;
+    }
+    $('#addComment').href = issue.html_url;
+    $('#addComment').textContent = 'Add comment on GitHub';
+    const comments = await fetchIssueComments(owner, name, issue.number);
     $('#commentCount').textContent = comments.length;
     if (!comments.length) {
-      list.innerHTML = '<div class="comments-empty">No client comments yet.</div>';
+      list.innerHTML = issue.body
+        ? `<article class="comment-card"><div class="comment-meta">Discussion started</div><p></p></article>`
+        : '<div class="comments-empty">No client comments yet.</div>';
+      const body = list.querySelector('.comment-card p');
+      if (body) body.textContent = issue.body;
       return;
     }
     list.innerHTML = '';

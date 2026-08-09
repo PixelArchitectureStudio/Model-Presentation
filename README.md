@@ -15,8 +15,7 @@ Browsers cannot render SketchUp `.skp` files directly. Export a `.glb` presentat
 2. In **Settings → Pages**, select **GitHub Actions** as the source.
 3. Create a fine-grained personal access token restricted to this repository with:
    - Contents: Read and write
-   - Issues: Read and write
-5. Open `admin.html` on the deployed Pages site and enter the repository details and token. The token is kept only in the current browser tab.
+4. Open `admin.html` on the deployed Pages site and enter the token. The token is kept only in the current browser tab.
 
 Each publish creates or updates:
 
@@ -30,7 +29,7 @@ The commit triggers the included Pages deployment workflow.
 
 ## Client comments
 
-Each saved camera view receives a GitHub Issue. Existing comments appear inside the client viewer. The client opens the issue thread to add a comment or note, so a GitHub account is required. Anonymous comments need an external database or serverless backend and are intentionally not included in this GitHub-only version.
+The first client who starts a discussion for a saved view creates its GitHub Issue. Existing comments then appear inside the client viewer. GitHub sign-in is required to create or comment on a discussion. Anonymous comments need an external database or serverless backend and are intentionally not included in this GitHub-only version.
 
 ## Local development
 

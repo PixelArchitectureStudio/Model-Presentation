@@ -1,6 +1,6 @@
 import '@google/model-viewer';
 import QRCode from 'qrcode';
-import { createViewIssue, publishFiles, readRepositoryJson } from './github.js';
+import { publishFiles, readRepositoryJson, verifyRepository } from './github.js';
 
 const $ = (selector) => document.querySelector(selector);
 const viewer = $('#adminViewer');
@@ -12,9 +12,9 @@ const safeText = (value) => String(value ?? '').replace(/[<>]/g, '');
 
 function repositoryConfig() {
   return {
-    owner: $('#repoOwner').value.trim(),
-    repo: $('#repoName').value.trim(),
-    branch: $('#repoBranch').value.trim() || 'main',
+    owner: 'PixelArchitectureStudio',
+    repo: 'Model-Presentation',
+    branch: 'main',
     token: $('#repoToken').value.trim(),
   };
 }
@@ -133,13 +133,8 @@ async function publish() {
     const config = validatePublish();
     saveRepositoryPreference();
     const project = buildProject();
-    setStatus('Preparing camera discussion threads…', 'working');
-    for (const view of project.views) {
-      if (!view.issueNumber) {
-        const issue = await createViewIssue(config, project, view);
-        view.issueNumber = issue.number;
-      }
-    }
+    setStatus('Checking secure repository access…', 'working');
+    await verifyRepository(config);
     const files = [{ path: `public/projects/${project.slug}/project.json`, content: JSON.stringify(project, null, 2) }];
     if (state.glbFile) files.push({ path: `public/projects/${project.slug}/model.glb`, file: state.glbFile });
     if (state.skpFile) files.push({ path: `public/projects/${project.slug}/source.skp`, file: state.skpFile });

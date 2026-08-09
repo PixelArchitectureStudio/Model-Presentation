@@ -73,19 +73,28 @@ export async function publishFiles(config, files, message) {
   return nextCommit;
 }
 
-export async function createViewIssue(config, project, view) {
-  return githubRequest(`/repos/${config.owner}/${config.repo}/issues`, {
-    method: 'POST',
-    token: config.token,
-    body: JSON.stringify({
-      title: `[${project.slug}] ${view.name}`,
-      body: `Client discussion for **${project.name}** — saved camera view **${view.name}**.\n\nPresentation ID: \`${project.slug}\`\nView ID: \`${view.id}\``,
-    }),
-  });
+export async function verifyRepository(config) {
+  try {
+    const repository = await githubRequest(`/repos/${config.owner}/${config.repo}`, { token: config.token });
+    await githubRequest(`/repos/${config.owner}/${config.repo}/git/ref/heads/${encodeURIComponent(config.branch)}`, { token: config.token });
+    return repository;
+  } catch (error) {
+    if (/not found/i.test(error.message)) {
+      throw new Error('The token cannot access Model-Presentation. Edit the token and select this repository under Repository access.');
+    }
+    throw error;
+  }
 }
 
 export async function fetchIssueComments(owner, repo, issueNumber) {
   return githubRequest(`/repos/${owner}/${repo}/issues/${issueNumber}/comments?per_page=100`);
+}
+
+export async function findViewIssue(owner, repo, projectSlug, viewId) {
+  const marker = `[${projectSlug}:${viewId}]`;
+  const query = encodeURIComponent(`repo:${owner}/${repo} "${marker}" in:title type:issue`);
+  const result = await githubRequest(`/search/issues?q=${query}&per_page=10`);
+  return (result.items || []).find((issue) => issue.title.includes(marker)) || null;
 }
 
 export async function readRepositoryJson(config, path) {
