@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#11110f" />
+    <title>Model Viewer · Pixel Architecture Studio</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body class="client-page">
+    <div class="client-shell">
+      <header class="topbar client-topbar">
+        <a class="brand" href="./index.html" aria-label="Pixel Model Presentation home">
+          <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
+          <span>Pixel <small>Architecture Studio</small></span>
+        </a>
+        <div class="client-actions">
+          <button id="clientFullscreen" class="icon-button" type="button">Full screen</button>
+        </div>
+      </header>
+
+      <main class="client-layout">
+        <section class="client-model-stage">
+          <model-viewer id="clientViewer" camera-controls shadow-intensity="1" exposure="1" environment-image="neutral" interaction-prompt="auto" interpolation-decay="120" alt="Interactive architectural model">
+            <div class="model-empty" slot="poster"><span>3D</span><p id="viewerState">Loading presentation…</p></div>
+            <div class="model-progress" slot="progress-bar"><span></span></div>
+            <button class="ar-button" slot="ar-button">View in your space</button>
+          </model-viewer>
+          <div class="model-title-overlay">
+            <p class="eyebrow">Model presentation</p>
+            <h1 id="clientProjectName">Loading…</h1>
+            <p id="clientProjectNote"></p>
+          </div>
+          <div class="viewer-hint client-hint">Drag to orbit · Pinch or scroll to zoom</div>
+        </section>
+
+        <aside class="client-sidebar">
+          <div class="sidebar-heading">
+            <p class="eyebrow">Curated walkthrough</p>
+            <h2>Saved camera views</h2>
+          </div>
+          <div id="clientViews" class="client-views"></div>
+          <section id="viewDetail" class="view-detail" hidden>
+            <div class="view-detail-heading"><span id="activeViewNumber">01</span><h3 id="activeViewName"></h3></div>
+            <p id="activeViewNote"></p>
+            <div class="comments-heading"><h4>Client comments</h4><span id="commentCount">0</span></div>
+            <div id="commentsList" class="comments-list"></div>
+            <a id="addComment" class="button button-secondary full-width" href="#" target="_blank" rel="noreferrer">Add comment on GitHub</a>
+            <p class="field-help">Comments are read-only here. GitHub sign-in is required to add one.</p>
+          </section>
+        </aside>
+      </main>
+    </div>
+    <script type="module" src="./src/view.js"></script>
+  </body>
+</html>

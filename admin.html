@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#11110f" />
+    <title>Admin · Pixel Model Presentation</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell admin-shell">
+      <header class="topbar">
+        <a class="brand" href="./index.html" aria-label="Pixel Model Presentation home">
+          <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
+          <span>Pixel <small>Model Presentation</small></span>
+        </a>
+        <div class="topbar-meta"><span class="status-dot"></span>Private admin</div>
+      </header>
+
+      <main class="admin-grid">
+        <aside class="admin-panel">
+          <section class="panel-section">
+            <div class="section-heading">
+              <span class="section-index">01</span>
+              <div><h2>Repository</h2><p>Connect the GitHub repository used by Pages.</p></div>
+            </div>
+            <div class="field-grid two-columns">
+              <label>Owner<input id="repoOwner" autocomplete="off" placeholder="github-name" /></label>
+              <label>Repository<input id="repoName" autocomplete="off" placeholder="model-presentation" /></label>
+            </div>
+            <div class="field-grid two-columns">
+              <label>Branch<input id="repoBranch" value="main" autocomplete="off" /></label>
+              <label>Fine-grained token<input id="repoToken" type="password" autocomplete="off" placeholder="Not stored" /></label>
+            </div>
+            <p class="field-help">The token stays in this browser tab and needs Contents and Issues write permission.</p>
+          </section>
+
+          <section class="panel-section">
+            <div class="section-heading">
+              <span class="section-index">02</span>
+              <div><h2>Presentation</h2><p>Name the project and add its main note.</p></div>
+            </div>
+            <label>Project name<input id="projectName" placeholder="Nazeriyeh Villa" /></label>
+            <label>Project ID<input id="projectSlug" placeholder="nazeriyeh-villa" /></label>
+            <label>Presentation note<textarea id="projectNote" rows="3" placeholder="Design intent, location, phase, or client guidance."></textarea></label>
+            <div class="field-grid two-columns">
+              <label>Viewable model (.glb)<input id="glbFile" type="file" accept=".glb,model/gltf-binary" /></label>
+              <label>Source model (.skp, optional)<input id="skpFile" type="file" accept=".skp" /></label>
+            </div>
+            <button id="loadExisting" class="text-button" type="button">Load existing project by ID</button>
+          </section>
+
+          <section class="panel-section views-section">
+            <div class="section-heading">
+              <span class="section-index">03</span>
+              <div><h2>Saved views</h2><p>Position the camera, then capture a view.</p></div>
+            </div>
+            <button id="captureView" class="button button-secondary full-width" type="button">Capture current camera</button>
+            <div id="cameraViews" class="camera-views" aria-live="polite"></div>
+          </section>
+
+          <section class="publish-section">
+            <button id="publishProject" class="button button-primary full-width" type="button">Publish presentation</button>
+            <p id="publishStatus" class="publish-status" role="status">Ready when your model and views are complete.</p>
+          </section>
+        </aside>
+
+        <section class="preview-stage">
+          <div class="stage-header">
+            <div><p class="eyebrow">Live preview</p><h2 id="previewTitle">Untitled presentation</h2></div>
+            <div class="stage-tools">
+              <button id="resetCamera" class="icon-button" type="button" aria-label="Reset camera">Reset</button>
+              <button id="toggleFullscreen" class="icon-button" type="button" aria-label="Fullscreen preview">Full screen</button>
+            </div>
+          </div>
+          <div class="model-frame">
+            <model-viewer id="adminViewer" camera-controls shadow-intensity="1" exposure="1" environment-image="neutral" interaction-prompt="none" interpolation-decay="120" alt="3D architectural model preview">
+              <div class="model-empty" slot="poster"><span>GLB</span><p>Upload a web-ready model to begin.</p></div>
+              <div class="model-progress" slot="progress-bar"><span></span></div>
+            </model-viewer>
+            <div class="viewer-hint">Drag to orbit · Scroll to zoom · Right-drag to pan</div>
+          </div>
+          <div class="share-drawer">
+            <div><p class="eyebrow">Client access</p><h3>Share presentation</h3><p id="shareLinkText">Publish the project to generate its permanent link.</p></div>
+            <canvas id="qrCanvas" width="168" height="168" aria-label="Presentation QR code"></canvas>
+            <div class="share-actions">
+              <button id="copyLink" class="button button-ghost" type="button" disabled>Copy link</button>
+              <button id="downloadQr" class="button button-ghost" type="button" disabled>Export QR</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="./src/admin.js"></script>
+  </body>
+</html>
