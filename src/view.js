@@ -19,11 +19,13 @@ function setError(message) {
   $('#clientProjectNote').textContent = 'Check the shared link or ask the architect for an updated presentation.';
 }
 
-function applyCamera(view) {
+function applyCamera(view, immediate = false) {
   viewer.cameraOrbit = view.orbit;
   viewer.cameraTarget = view.target;
   viewer.fieldOfView = view.fieldOfView;
-  viewer.jumpCameraToGoal();
+
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (immediate || prefersReducedMotion) viewer.jumpCameraToGoal();
 }
 
 function formatDate(value) {
@@ -78,8 +80,9 @@ async function showComments(view) {
 }
 
 function selectView(view, index) {
+  const isInitialView = state.activeView === null;
   state.activeView = view;
-  applyCamera(view);
+  applyCamera(view, isInitialView);
   document.querySelectorAll('.client-view-button').forEach((button, buttonIndex) => button.classList.toggle('active', index === buttonIndex));
   $('#viewDetail').hidden = false;
   $('#activeViewNumber').textContent = String(index + 1).padStart(2, '0');
@@ -114,6 +117,7 @@ async function loadPresentation() {
     $('#clientProjectName').textContent = state.project.name;
     $('#clientProjectNote').textContent = state.project.note || '';
     viewer.src = projectAsset(state.project.modelPath);
+    viewer.interpolationDecay = 80;
     viewer.setAttribute('ar', '');
     viewer.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
     renderViews();
