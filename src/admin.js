@@ -1,11 +1,14 @@
 import '@google/model-viewer';
 import QRCode from 'qrcode';
 import { publishFiles, readRepositoryJson, verifyRepository } from './github.js';
+import { createDimensionRenderer, distanceMeters, formatDistance, normalizeDimension, pointFromHit } from './dimensions.js';
 
 const $ = (selector) => document.querySelector(selector);
 const viewer = $('#adminViewer');
 const viewsContainer = $('#cameraViews');
-const state = { views: [], glbFile: null, skpFile: null, publishedUrl: '', existing: null };
+const dimensionsContainer = $('#dimensionsList');
+const dimensionRenderer = createDimensionRenderer(viewer, $('#adminDimensionLines'));
+const state = { views: [], dimensions: [], dimensionDraft: null, pointerStart: null, glbFile: null, skpFile: null, publishedUrl: '', existing: null };
 
 const slugify = (value) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 64);
 const safeText = (value) => String(value ?? '').replace(/[<>]/g, '');
@@ -67,6 +70,125 @@ function applyCamera(view) {
   viewer.jumpCameraToGoal();
 }
 
+function currentDimensions() {
+  return state.dimensionDraft?.start ? [...state.dimensions, state.dimensionDraft] : state.dimensions;
+}
+
+function updateDimensionPreview() {
+  dimensionRenderer.render(currentDimensions());
+  if (!state.dimensionDraft?.end) {
+    $('#dimensionValue').value = '—';
+    return;
+  }
+  state.dimensionDraft.unit = $('#dimensionUnit').value;
+  state.dimensionDraft.name = $('#dimensionName').value.trim();
+  state.dimensionDraft.lengthMeters = distanceMeters(state.dimensionDraft.start, state.dimensionDraft.end);
+  $('#dimensionValue').value = formatDistance(state.dimensionDraft.lengthMeters, state.dimensionDraft.unit);
+  dimensionRenderer.render(currentDimensions());
+}
+
+function renderDimensions() {
+  dimensionsContainer.innerHTML = '';
+  if (!state.dimensions.length) {
+    dimensionsContainer.innerHTML = '<div class="empty-list"><span>No saved dimensions</span><p>Add a dimension, then select two points on the model.</p></div>';
+  } else {
+    state.dimensions.forEach((dimension, index) => {
+      const card = document.createElement('article');
+      card.className = 'dimension-card';
+      const name = document.createElement('strong');
+      name.textContent = dimension.name || `Dimension ${index + 1}`;
+      const value = document.createElement('span');
+      value.textContent = formatDistance(dimension.lengthMeters, dimension.unit);
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.textContent = 'Delete';
+      remove.addEventListener('click', () => {
+        state.dimensions.splice(index, 1);
+        renderDimensions();
+      });
+      card.append(name, value, remove);
+      dimensionsContainer.append(card);
+    });
+  }
+  dimensionRenderer.render(currentDimensions());
+}
+
+function setDimensionMode(active) {
+  const frame = $('.model-frame');
+  const hint = $('#dimensionModeHint');
+  frame.classList.toggle('dimension-mode', active);
+  hint.hidden = !active;
+  viewer.toggleAttribute('disable-tap', active);
+  $('#startDimension').disabled = active;
+  if (!active) state.pointerStart = null;
+}
+
+function updateDimensionPrompt(message, step = 1) {
+  $('#dimensionDraftStatus').textContent = message;
+  $('#dimensionModeHint').textContent = `Dimension mode · Select point ${step}`;
+}
+
+function startDimension() {
+  if (!viewer.src) return setStatus('Upload or load a GLB model before adding dimensions.', 'error');
+  state.dimensionDraft = { id: `draft-${crypto.randomUUID()}`, name: '', unit: $('#dimensionUnit').value, start: null, end: null, lengthMeters: 0 };
+  $('#dimensionDraft').hidden = false;
+  $('#dimensionDraftFields').hidden = false;
+  $('#dimensionName').value = '';
+  $('#dimensionValue').value = '—';
+  $('#saveDimension').disabled = true;
+  updateDimensionPrompt('Select the first point on the model.', 1);
+  setDimensionMode(true);
+  renderDimensions();
+}
+
+function cancelDimension() {
+  state.dimensionDraft = null;
+  $('#dimensionDraft').hidden = true;
+  $('#dimensionDraftFields').hidden = true;
+  setDimensionMode(false);
+  renderDimensions();
+}
+
+function saveDimension() {
+  if (!state.dimensionDraft?.start || !state.dimensionDraft?.end) return;
+  const dimension = normalizeDimension({
+    ...state.dimensionDraft,
+    id: crypto.randomUUID(),
+    name: $('#dimensionName').value.trim() || `Dimension ${state.dimensions.length + 1}`,
+    unit: $('#dimensionUnit').value,
+  });
+  state.dimensions.push(dimension);
+  state.dimensionDraft = null;
+  $('#dimensionDraft').hidden = true;
+  $('#dimensionDraftFields').hidden = true;
+  setDimensionMode(false);
+  renderDimensions();
+  setStatus(`${dimension.name} saved at ${formatDistance(dimension.lengthMeters, dimension.unit)}.`, 'success');
+}
+
+function captureDimensionPoint(event) {
+  if (!state.dimensionDraft || !state.pointerStart || event.button !== 0) return;
+  const movement = Math.hypot(event.clientX - state.pointerStart.x, event.clientY - state.pointerStart.y);
+  state.pointerStart = null;
+  if (movement > 6) return;
+  const bounds = viewer.getBoundingClientRect();
+  const hit = viewer.positionAndNormalFromPoint(event.clientX - bounds.left, event.clientY - bounds.top);
+  if (!hit) {
+    updateDimensionPrompt('No model surface found. Select a visible point.', state.dimensionDraft.start ? 2 : 1);
+    return;
+  }
+  if (!state.dimensionDraft.start) {
+    state.dimensionDraft.start = pointFromHit(hit);
+    updateDimensionPrompt('Point 1 saved. Select the second point.', 2);
+  } else {
+    state.dimensionDraft.end = pointFromHit(hit);
+    updateDimensionPrompt('Measurement ready. Name it, choose a unit, and save.', 2);
+    $('#dimensionModeHint').textContent = 'Dimension ready · Review and save';
+    $('#saveDimension').disabled = false;
+  }
+  updateDimensionPreview();
+}
+
 function renderViews() {
   viewsContainer.innerHTML = '';
   if (!state.views.length) {
@@ -116,7 +238,7 @@ function buildProject() {
   const config = repositoryConfig();
   const slug = slugify($('#projectSlug').value);
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     slug,
     name: $('#projectName').value.trim(),
     note: $('#projectNote').value.trim(),
@@ -125,6 +247,7 @@ function buildProject() {
     repository: { owner: config.owner, name: config.repo },
     updatedAt: new Date().toISOString(),
     views: state.views,
+    dimensions: state.dimensions,
   };
 }
 
@@ -158,12 +281,14 @@ async function loadExisting() {
     const project = await readRepositoryJson(config, `public/projects/${slug}/project.json`);
     state.existing = project;
     state.views = project.views || [];
+    state.dimensions = (project.dimensions || []).map(normalizeDimension);
     $('#projectName').value = project.name || '';
     $('#projectNote').value = project.note || '';
     $('#projectSlug').value = project.slug || slug;
     $('#previewTitle').textContent = project.name || 'Untitled presentation';
     viewer.src = new URL(project.modelPath, projectBaseUrl()).href;
     renderViews();
+    renderDimensions();
     await updateQr(clientUrl(project.slug));
     setStatus('Existing presentation loaded.', 'success');
   } catch (error) {
@@ -186,6 +311,18 @@ $('#captureView').addEventListener('click', () => {
   state.views.push({ id: crypto.randomUUID(), name: `View ${state.views.length + 1}`, note: '', ...cameraSnapshot(), issueNumber: null });
   renderViews();
 });
+$('#startDimension').addEventListener('click', startDimension);
+$('#cancelDimension').addEventListener('click', cancelDimension);
+$('#saveDimension').addEventListener('click', saveDimension);
+$('#dimensionName').addEventListener('input', updateDimensionPreview);
+$('#dimensionUnit').addEventListener('change', updateDimensionPreview);
+viewer.addEventListener('pointerdown', (event) => {
+  if (state.dimensionDraft && event.button === 0) state.pointerStart = { x: event.clientX, y: event.clientY };
+}, true);
+viewer.addEventListener('pointerup', captureDimensionPoint, true);
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && state.dimensionDraft) cancelDimension();
+});
 $('#publishProject').addEventListener('click', publish);
 $('#loadExisting').addEventListener('click', loadExisting);
 $('#resetCamera').addEventListener('click', () => { viewer.cameraOrbit = 'auto auto auto'; viewer.cameraTarget = 'auto auto auto'; viewer.fieldOfView = 'auto'; });
@@ -200,3 +337,4 @@ $('#downloadQr').addEventListener('click', () => {
 
 restoreRepositoryPreference();
 renderViews();
+renderDimensions();
