@@ -228,11 +228,13 @@ function captureDimensionPoint(event) {
   const insideViewer = event.clientX >= bounds.left && event.clientX <= bounds.right && event.clientY >= bounds.top && event.clientY <= bounds.bottom;
   if (!insideViewer) return;
 
-  if (state.dimensionDraft.phase === 'offset' || state.dimensionDraft.phase === 'ready') {
+  if (state.dimensionDraft.phase === 'ready') return;
+
+  if (state.dimensionDraft.phase === 'offset') {
     state.dimensionDraft.offset = dimensionRenderer.offsetFromScreen(state.dimensionDraft, event.clientX, event.clientY);
     state.dimensionDraft.phase = 'ready';
     snapController.clear();
-    updateDimensionPrompt('Dimension line placed. Click again to reposition it, or save.', 'Left: place line');
+    updateDimensionPrompt('Dimension height locked. It will stay fixed while you name and save it.', 'Height locked');
     $('#saveDimension').disabled = false;
     updateDimensionPreview();
     return;
@@ -418,12 +420,13 @@ viewer.addEventListener('pointermove', (event) => {
   state.snapFrame = requestAnimationFrame(() => {
     state.snapFrame = 0;
     if (!state.dimensionDraft) return;
-    if (state.dimensionDraft.phase === 'offset' || state.dimensionDraft.phase === 'ready') {
+    if (state.dimensionDraft.phase === 'offset') {
       snapController.clear();
       state.dimensionDraft.offset = dimensionRenderer.offsetFromScreen(state.dimensionDraft, clientX, clientY);
       updateDimensionPreview();
       return;
     }
+    if (state.dimensionDraft.phase === 'ready') return;
     snapController.preview(clientX, clientY);
   });
 }, true);
