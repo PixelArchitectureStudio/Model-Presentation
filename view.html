@@ -15,6 +15,7 @@
           <span>Pixel <small>Architecture Studio</small></span>
         </a>
         <div class="client-actions">
+          <button id="toggleDimensions" class="icon-button" type="button" aria-pressed="true" hidden>Dimensions</button>
           <button id="clientFullscreen" class="icon-button" type="button">Full screen</button>
         </div>
       </header>
@@ -26,6 +27,7 @@
             <div class="model-progress" slot="progress-bar"><span></span></div>
             <button class="ar-button" slot="ar-button">View in your space</button>
           </model-viewer>
+          <svg id="clientDimensionLines" class="dimension-lines" aria-hidden="true"></svg>
           <div class="model-title-overlay">
             <p class="eyebrow">Model presentation</p>
             <h1 id="clientProjectName">Loading…</h1>
