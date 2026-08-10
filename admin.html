@@ -50,9 +50,39 @@
             <button id="loadExisting" class="text-button" type="button">Load existing project by ID</button>
           </section>
 
-          <section class="panel-section views-section">
+          <section class="panel-section dimensions-section">
             <div class="section-heading">
               <span class="section-index">03</span>
+              <div><h2>Dimensions</h2><p>Measure between two points on the model.</p></div>
+            </div>
+            <button id="startDimension" class="button button-secondary full-width" type="button">Add dimension</button>
+            <div id="dimensionDraft" class="dimension-draft" hidden>
+              <p id="dimensionDraftStatus" class="dimension-draft-status">Select the first point on the model.</p>
+              <div id="dimensionDraftFields" class="dimension-draft-fields" hidden>
+                <label>Dimension name<input id="dimensionName" placeholder="Overall width" /></label>
+                <div class="field-grid two-columns">
+                  <label>Display unit
+                    <select id="dimensionUnit">
+                      <option value="m">Metres (m)</option>
+                      <option value="cm">Centimetres (cm)</option>
+                      <option value="mm">Millimetres (mm)</option>
+                    </select>
+                  </label>
+                  <label>Measured value<input id="dimensionValue" readonly /></label>
+                </div>
+                <div class="dimension-draft-actions">
+                  <button id="cancelDimension" class="button button-ghost" type="button">Cancel</button>
+                  <button id="saveDimension" class="button button-primary" type="button">Save dimension</button>
+                </div>
+              </div>
+            </div>
+            <div id="dimensionsList" class="dimensions-list" aria-live="polite"></div>
+            <p class="field-help">GLB uses metres internally. Measurements stay fixed to the selected 3D points.</p>
+          </section>
+
+          <section class="panel-section views-section">
+            <div class="section-heading">
+              <span class="section-index">04</span>
               <div><h2>Saved views</h2><p>Position the camera, then capture a view.</p></div>
             </div>
             <button id="captureView" class="button button-secondary full-width" type="button">Capture current camera</button>
@@ -78,6 +108,8 @@
               <div class="model-empty" slot="poster"><span>GLB</span><p>Upload a web-ready model to begin.</p></div>
               <div class="model-progress" slot="progress-bar"><span></span></div>
             </model-viewer>
+            <svg id="adminDimensionLines" class="dimension-lines" aria-hidden="true"></svg>
+            <div id="dimensionModeHint" class="dimension-mode-hint" hidden>Dimension mode · Select point 1</div>
             <div class="viewer-hint">Drag to orbit · Scroll to zoom · Right-drag to pan</div>
           </div>
           <div class="share-drawer">
