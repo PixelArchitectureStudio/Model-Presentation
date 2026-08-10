@@ -2,13 +2,25 @@ import '@google/model-viewer';
 import QRCode from 'qrcode';
 import { publishFiles, readRepositoryJson, verifyRepository } from './github.js';
 import { createDimensionRenderer, distanceMeters, formatDistance, normalizeDimension, pointFromHit } from './dimensions.js';
+import { createSnapPointController } from './snap-points.js';
 
 const $ = (selector) => document.querySelector(selector);
 const viewer = $('#adminViewer');
 const viewsContainer = $('#cameraViews');
 const dimensionsContainer = $('#dimensionsList');
 const dimensionRenderer = createDimensionRenderer(viewer, $('#adminDimensionLines'));
-const state = { views: [], dimensions: [], dimensionDraft: null, pointerStart: null, glbFile: null, skpFile: null, publishedUrl: '', existing: null };
+const snapController = createSnapPointController(viewer);
+const state = {
+  views: [],
+  dimensions: [],
+  dimensionDraft: null,
+  pointerStart: null,
+  snapFrame: 0,
+  glbFile: null,
+  skpFile: null,
+  publishedUrl: '',
+  existing: null,
+};
 const dimensionCursorStyle = document.createElement('style');
 dimensionCursorStyle.textContent = '.userInput { cursor: crosshair !important; }';
 
@@ -55,6 +67,22 @@ function clientUrl(slug) {
   return url.href;
 }
 
+async function prepareSnapPoints(source) {
+  if (!source) return;
+  try {
+    const count = await snapController.load(source);
+    if (state.dimensionDraft && ['start', 'end'].includes(state.dimensionDraft.phase)) {
+      const pointLabel = state.dimensionDraft.phase === 'start' ? 'point 1' : 'point 2';
+      updateDimensionPrompt(`${count.toLocaleString()} model snap points ready. Select ${pointLabel}.`, `Left: ${pointLabel}`);
+    }
+  } catch {
+    snapController.reset();
+    if (state.dimensionDraft && ['start', 'end'].includes(state.dimensionDraft.phase)) {
+      updateDimensionPrompt('Vertex snapping is unavailable for this GLB. Surface picking still works.', `Left: point ${state.dimensionDraft.phase === 'start' ? 1 : 2}`);
+    }
+  }
+}
+
 function cameraSnapshot() {
   const orbit = viewer.getCameraOrbit();
   const target = viewer.getCameraTarget();
@@ -65,11 +93,12 @@ function cameraSnapshot() {
   };
 }
 
-function applyCamera(view) {
+function applyCamera(view, immediate = false) {
   viewer.cameraOrbit = view.orbit;
   viewer.cameraTarget = view.target;
   viewer.fieldOfView = view.fieldOfView;
-  viewer.jumpCameraToGoal();
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (immediate || prefersReducedMotion) viewer.jumpCameraToGoal();
 }
 
 function currentDimensions() {
@@ -124,23 +153,37 @@ function setDimensionMode(active) {
   if (active) viewer.shadowRoot?.append(dimensionCursorStyle);
   else dimensionCursorStyle.remove();
   $('#startDimension').disabled = active;
-  if (!active) state.pointerStart = null;
+  if (!active) {
+    state.pointerStart = null;
+    snapController.clear();
+    if (state.snapFrame) cancelAnimationFrame(state.snapFrame);
+    state.snapFrame = 0;
+  }
 }
 
-function updateDimensionPrompt(message, step = 1) {
+function updateDimensionPrompt(message, instruction = 'Left: point 1') {
   $('#dimensionDraftStatus').textContent = message;
-  $('#dimensionModeHint').textContent = `Dimension mode · Left: point ${step} · Middle: orbit · Right: pan`;
+  $('#dimensionModeHint').textContent = `Dimension mode · ${instruction} · Middle: orbit · Right: pan`;
 }
 
 function startDimension() {
   if (!viewer.src) return setStatus('Upload or load a GLB model before adding dimensions.', 'error');
-  state.dimensionDraft = { id: `draft-${crypto.randomUUID()}`, name: '', unit: $('#dimensionUnit').value, start: null, end: null, lengthMeters: 0 };
+  state.dimensionDraft = {
+    id: `draft-${crypto.randomUUID()}`,
+    name: '',
+    unit: $('#dimensionUnit').value,
+    start: null,
+    end: null,
+    offset: [0, 0, 0],
+    phase: 'start',
+    lengthMeters: 0,
+  };
   $('#dimensionDraft').hidden = false;
   $('#dimensionDraftFields').hidden = false;
   $('#dimensionName').value = '';
   $('#dimensionValue').value = '—';
   $('#saveDimension').disabled = true;
-  updateDimensionPrompt('Select the first point on the model.', 1);
+  updateDimensionPrompt('Select the first point. Move near a visible vertex to snap.', 'Left: point 1');
   setDimensionMode(true);
   renderDimensions();
 }
@@ -154,7 +197,7 @@ function cancelDimension() {
 }
 
 function saveDimension() {
-  if (!state.dimensionDraft?.start || !state.dimensionDraft?.end) return;
+  if (!state.dimensionDraft?.start || !state.dimensionDraft?.end || state.dimensionDraft.phase !== 'ready') return;
   const dimension = normalizeDimension({
     ...state.dimensionDraft,
     id: crypto.randomUUID(),
@@ -184,19 +227,32 @@ function captureDimensionPoint(event) {
   const bounds = viewer.getBoundingClientRect();
   const insideViewer = event.clientX >= bounds.left && event.clientX <= bounds.right && event.clientY >= bounds.top && event.clientY <= bounds.bottom;
   if (!insideViewer) return;
-  const hit = viewer.positionAndNormalFromPoint(event.clientX, event.clientY);
-  if (!hit) {
-    updateDimensionPrompt('No model surface found. Select a visible point.', state.dimensionDraft.start ? 2 : 1);
+
+  if (state.dimensionDraft.phase === 'offset' || state.dimensionDraft.phase === 'ready') {
+    state.dimensionDraft.offset = dimensionRenderer.offsetFromScreen(state.dimensionDraft, event.clientX, event.clientY);
+    state.dimensionDraft.phase = 'ready';
+    snapController.clear();
+    updateDimensionPrompt('Dimension line placed. Click again to reposition it, or save.', 'Left: place line');
+    $('#saveDimension').disabled = false;
+    updateDimensionPreview();
     return;
   }
-  if (!state.dimensionDraft.start) {
-    state.dimensionDraft.start = pointFromHit(hit);
-    updateDimensionPrompt('Point 1 saved. Select the second point.', 2);
+
+  const preview = snapController.preview(event.clientX, event.clientY);
+  if (!preview?.hit) {
+    updateDimensionPrompt('No model surface found. Select a visible point.', state.dimensionDraft.phase === 'end' ? 'Left: point 2' : 'Left: point 1');
+    return;
+  }
+  const selectedPoint = preview.active || pointFromHit(preview.hit);
+  if (state.dimensionDraft.phase === 'start') {
+    state.dimensionDraft.start = selectedPoint;
+    state.dimensionDraft.phase = 'end';
+    updateDimensionPrompt(preview.active ? 'Point 1 snapped to a model vertex. Select point 2.' : 'Point 1 saved. Select point 2.', 'Left: point 2');
   } else {
-    state.dimensionDraft.end = pointFromHit(hit);
-    updateDimensionPrompt('Measurement ready. Name it, choose a unit, and save.', 2);
-    $('#dimensionModeHint').textContent = 'Dimension ready · Middle: orbit · Right: pan';
-    $('#saveDimension').disabled = false;
+    state.dimensionDraft.end = selectedPoint;
+    state.dimensionDraft.phase = 'offset';
+    snapController.clear();
+    updateDimensionPrompt('Points selected. Move the cursor and click to place the dimension line.', 'Left: place line');
   }
   updateDimensionPreview();
 }
@@ -250,7 +306,7 @@ function buildProject() {
   const config = repositoryConfig();
   const slug = slugify($('#projectSlug').value);
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     slug,
     name: $('#projectName').value.trim(),
     note: $('#projectNote').value.trim(),
@@ -298,7 +354,9 @@ async function loadExisting() {
     $('#projectNote').value = project.note || '';
     $('#projectSlug').value = project.slug || slug;
     $('#previewTitle').textContent = project.name || 'Untitled presentation';
-    viewer.src = new URL(project.modelPath, projectBaseUrl()).href;
+    const modelSource = new URL(project.modelPath, projectBaseUrl()).href;
+    viewer.src = modelSource;
+    prepareSnapPoints(modelSource);
     renderViews();
     renderDimensions();
     await updateQr(clientUrl(project.slug));
@@ -315,7 +373,13 @@ $('#projectName').addEventListener('input', (event) => {
 $('#projectSlug').addEventListener('input', (event) => { event.target.dataset.edited = 'true'; });
 $('#glbFile').addEventListener('change', (event) => {
   state.glbFile = event.target.files[0] || null;
-  if (state.glbFile) viewer.src = URL.createObjectURL(state.glbFile);
+  if (state.glbFile) {
+    const modelSource = URL.createObjectURL(state.glbFile);
+    viewer.src = modelSource;
+    prepareSnapPoints(modelSource);
+  } else {
+    snapController.reset();
+  }
 });
 $('#skpFile').addEventListener('change', (event) => { state.skpFile = event.target.files[0] || null; });
 $('#captureView').addEventListener('click', () => {
@@ -343,9 +407,25 @@ viewer.addEventListener('pointerdown', (event) => {
   }
 }, true);
 viewer.addEventListener('pointermove', (event) => {
-  if (!state.dimensionDraft || state.pointerStart?.pointerId !== event.pointerId || event.pointerType === 'touch') return;
-  event.preventDefault();
-  event.stopPropagation();
+  if (!state.dimensionDraft || event.pointerType === 'touch') return;
+  if (state.pointerStart?.pointerId === event.pointerId) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+  if (event.buttons !== 0 || state.snapFrame) return;
+  const { clientX, clientY } = event;
+  state.snapFrame = requestAnimationFrame(() => {
+    state.snapFrame = 0;
+    if (!state.dimensionDraft) return;
+    if (state.dimensionDraft.phase === 'offset' || state.dimensionDraft.phase === 'ready') {
+      snapController.clear();
+      state.dimensionDraft.offset = dimensionRenderer.offsetFromScreen(state.dimensionDraft, clientX, clientY);
+      updateDimensionPreview();
+      return;
+    }
+    snapController.preview(clientX, clientY);
+  });
 }, true);
 viewer.addEventListener('pointerup', captureDimensionPoint, true);
 viewer.addEventListener('pointercancel', (event) => {
@@ -358,6 +438,9 @@ viewer.addEventListener('contextmenu', (event) => {
 });
 viewer.addEventListener('auxclick', (event) => {
   if (state.dimensionDraft && event.button === 1) event.preventDefault();
+});
+viewer.addEventListener('pointerleave', () => {
+  if (state.dimensionDraft && ['start', 'end'].includes(state.dimensionDraft.phase)) snapController.clear();
 });
 window.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && state.dimensionDraft) cancelDimension();
@@ -375,5 +458,6 @@ $('#downloadQr').addEventListener('click', () => {
 });
 
 restoreRepositoryPreference();
+viewer.interpolationDecay = 80;
 renderViews();
 renderDimensions();
