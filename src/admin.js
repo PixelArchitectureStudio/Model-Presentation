@@ -9,6 +9,8 @@ const viewsContainer = $('#cameraViews');
 const dimensionsContainer = $('#dimensionsList');
 const dimensionRenderer = createDimensionRenderer(viewer, $('#adminDimensionLines'));
 const state = { views: [], dimensions: [], dimensionDraft: null, pointerStart: null, glbFile: null, skpFile: null, publishedUrl: '', existing: null };
+const dimensionCursorStyle = document.createElement('style');
+dimensionCursorStyle.textContent = '.userInput { cursor: crosshair !important; }';
 
 const slugify = (value) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 64);
 const safeText = (value) => String(value ?? '').replace(/[<>]/g, '');
@@ -119,13 +121,15 @@ function setDimensionMode(active) {
   frame.classList.toggle('dimension-mode', active);
   hint.hidden = !active;
   viewer.toggleAttribute('disable-tap', active);
+  if (active) viewer.shadowRoot?.append(dimensionCursorStyle);
+  else dimensionCursorStyle.remove();
   $('#startDimension').disabled = active;
   if (!active) state.pointerStart = null;
 }
 
 function updateDimensionPrompt(message, step = 1) {
   $('#dimensionDraftStatus').textContent = message;
-  $('#dimensionModeHint').textContent = `Dimension mode · Select point ${step}`;
+  $('#dimensionModeHint').textContent = `Dimension mode · Left: point ${step} · Middle: orbit · Right: pan`;
 }
 
 function startDimension() {
@@ -167,12 +171,20 @@ function saveDimension() {
 }
 
 function captureDimensionPoint(event) {
-  if (!state.dimensionDraft || !state.pointerStart || event.button !== 0) return;
+  if (!state.dimensionDraft || !state.pointerStart || event.button !== 0 || state.pointerStart.pointerId !== event.pointerId) return;
+  const interceptMouse = event.pointerType !== 'touch';
+  if (interceptMouse) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
   const movement = Math.hypot(event.clientX - state.pointerStart.x, event.clientY - state.pointerStart.y);
+  if (viewer.hasPointerCapture?.(event.pointerId)) viewer.releasePointerCapture(event.pointerId);
   state.pointerStart = null;
   if (movement > 6) return;
   const bounds = viewer.getBoundingClientRect();
-  const hit = viewer.positionAndNormalFromPoint(event.clientX - bounds.left, event.clientY - bounds.top);
+  const insideViewer = event.clientX >= bounds.left && event.clientX <= bounds.right && event.clientY >= bounds.top && event.clientY <= bounds.bottom;
+  if (!insideViewer) return;
+  const hit = viewer.positionAndNormalFromPoint(event.clientX, event.clientY);
   if (!hit) {
     updateDimensionPrompt('No model surface found. Select a visible point.', state.dimensionDraft.start ? 2 : 1);
     return;
@@ -183,7 +195,7 @@ function captureDimensionPoint(event) {
   } else {
     state.dimensionDraft.end = pointFromHit(hit);
     updateDimensionPrompt('Measurement ready. Name it, choose a unit, and save.', 2);
-    $('#dimensionModeHint').textContent = 'Dimension ready · Review and save';
+    $('#dimensionModeHint').textContent = 'Dimension ready · Middle: orbit · Right: pan';
     $('#saveDimension').disabled = false;
   }
   updateDimensionPreview();
@@ -317,9 +329,36 @@ $('#saveDimension').addEventListener('click', saveDimension);
 $('#dimensionName').addEventListener('input', updateDimensionPreview);
 $('#dimensionUnit').addEventListener('change', updateDimensionPreview);
 viewer.addEventListener('pointerdown', (event) => {
-  if (state.dimensionDraft && event.button === 0) state.pointerStart = { x: event.clientX, y: event.clientY };
+  if (!state.dimensionDraft) return;
+  if (event.button === 1) {
+    event.preventDefault();
+    return;
+  }
+  if (event.button !== 0) return;
+  state.pointerStart = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
+  if (event.pointerType !== 'touch') {
+    event.preventDefault();
+    event.stopPropagation();
+    try { viewer.setPointerCapture(event.pointerId); } catch { /* Pointer capture is optional. */ }
+  }
+}, true);
+viewer.addEventListener('pointermove', (event) => {
+  if (!state.dimensionDraft || state.pointerStart?.pointerId !== event.pointerId || event.pointerType === 'touch') return;
+  event.preventDefault();
+  event.stopPropagation();
 }, true);
 viewer.addEventListener('pointerup', captureDimensionPoint, true);
+viewer.addEventListener('pointercancel', (event) => {
+  if (state.pointerStart?.pointerId !== event.pointerId) return;
+  if (viewer.hasPointerCapture?.(event.pointerId)) viewer.releasePointerCapture(event.pointerId);
+  state.pointerStart = null;
+}, true);
+viewer.addEventListener('contextmenu', (event) => {
+  if (state.dimensionDraft) event.preventDefault();
+});
+viewer.addEventListener('auxclick', (event) => {
+  if (state.dimensionDraft && event.button === 1) event.preventDefault();
+});
 window.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && state.dimensionDraft) cancelDimension();
 });
