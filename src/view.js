@@ -1,9 +1,11 @@
 import '@google/model-viewer';
 import { fetchIssueComments, findViewIssue } from './github.js';
+import { createDimensionRenderer, normalizeDimension } from './dimensions.js';
 
 const $ = (selector) => document.querySelector(selector);
 const viewer = $('#clientViewer');
-const state = { project: null, activeView: null };
+const dimensionRenderer = createDimensionRenderer(viewer, $('#clientDimensionLines'));
+const state = { project: null, activeView: null, dimensionsVisible: true };
 
 function projectId() {
   return new URLSearchParams(window.location.search).get('id');
@@ -106,6 +108,15 @@ function renderViews() {
   });
 }
 
+function renderDimensions() {
+  const dimensions = (state.project.dimensions || []).map(normalizeDimension);
+  dimensionRenderer.render(dimensions);
+  const toggle = $('#toggleDimensions');
+  toggle.hidden = dimensions.length === 0;
+  toggle.textContent = dimensions.length === 1 ? '1 dimension' : `${dimensions.length} dimensions`;
+  toggle.setAttribute('aria-pressed', String(state.dimensionsVisible));
+}
+
 async function loadPresentation() {
   const id = projectId();
   if (!id || !/^[a-z0-9-]+$/.test(id)) return setError('The model ID is missing from this link.');
@@ -120,6 +131,7 @@ async function loadPresentation() {
     viewer.interpolationDecay = 80;
     viewer.setAttribute('ar', '');
     viewer.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
+    renderDimensions();
     renderViews();
     if (state.project.views.length) selectView(state.project.views[0], 0);
   } catch {
@@ -128,4 +140,10 @@ async function loadPresentation() {
 }
 
 $('#clientFullscreen').addEventListener('click', () => $('.client-model-stage').requestFullscreen?.());
+$('#toggleDimensions').addEventListener('click', () => {
+  state.dimensionsVisible = !state.dimensionsVisible;
+  dimensionRenderer.setVisible(state.dimensionsVisible);
+  $('.client-model-stage').classList.toggle('dimensions-hidden', !state.dimensionsVisible);
+  $('#toggleDimensions').setAttribute('aria-pressed', String(state.dimensionsVisible));
+});
 loadPresentation();
