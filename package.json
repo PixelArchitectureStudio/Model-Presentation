@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@google/model-viewer": "^4.1.0",
-    "qrcode": "^1.5.4"
+    "qrcode": "^1.5.4",
+    "three": "^0.183.2"
   },
   "devDependencies": {
     "vite": "^7.1.1"
