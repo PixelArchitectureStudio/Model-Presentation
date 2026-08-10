@@ -118,12 +118,12 @@ model-viewer { display: block; width: 100%; height: 100%; --poster-color: #dedcd
 .dimension-lines .dimension-extension { opacity: .58; stroke-width: 1; }
 .dimension-lines .dimension-measurement { stroke-width: 1.35; }
 .dimension-hotspot { z-index: 5; border: 0; pointer-events: none; }
-.dimension-dot { width: 8px; height: 8px; padding: 0; border: 2px solid var(--paper); border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px rgba(17,17,15,.45); }
+.dimension-dot { width: 9px; height: 9px; padding: 0; border: 1px solid rgba(255,255,255,.92); border-radius: 50%; background: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--accent), white 72%) 0 8%, color-mix(in srgb, var(--accent), white 24%) 16%, var(--accent) 52%, color-mix(in srgb, var(--accent), black 42%) 100%); box-shadow: 0 1px 3px rgba(0,0,0,.72), 0 0 0 2px rgba(231,72,54,.18); }
 .dimension-origin-dot { width: 7px; height: 7px; opacity: .8; }
 .dimension-offset-dot { width: 6px; height: 6px; border-width: 1px; }
 .dimension-label { width: max-content; max-width: 180px; padding: 6px 8px; border: 1px solid rgba(240,238,232,.28); border-radius: 2px; background: rgba(17,17,15,.88); color: var(--paper); box-shadow: 0 3px 12px rgba(0,0,0,.15); font-family: 'Space Mono', monospace; font-size: 9px; line-height: 1; white-space: nowrap; transform: translateY(-13px); }
-.snap-hotspot { z-index: 7; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border: 1px solid rgba(17,17,15,.72); border-radius: 50%; background: rgba(240,238,232,.82); box-shadow: 0 0 0 2px rgba(240,238,232,.24); pointer-events: none; }
-.snap-hotspot.active { width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; border: 2px solid var(--paper); background: var(--accent); box-shadow: 0 0 0 3px rgba(231,72,54,.2); }
+.snap-hotspot { z-index: 7; width: 10px; height: 10px; margin: -5px 0 0 -5px; border: 1px solid rgba(255,255,255,.88); border-radius: 50%; background: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--accent), white 76%) 0 8%, color-mix(in srgb, var(--accent), white 25%) 16%, var(--accent) 52%, color-mix(in srgb, var(--accent), black 45%) 100%); box-shadow: 0 1px 4px rgba(0,0,0,.78), 0 0 0 2px rgba(231,72,54,.2); pointer-events: none; }
+.snap-hotspot.active { width: 15px; height: 15px; margin: -7.5px 0 0 -7.5px; border: 2px solid var(--paper); box-shadow: 0 2px 7px rgba(0,0,0,.8), 0 0 0 4px rgba(231,72,54,.28); }
 .dimension-mode-hint { position: absolute; top: 12px; left: 12px; z-index: 8; padding: 8px 10px; border: 1px solid rgba(240,238,232,.22); background: rgba(17,17,15,.82); color: var(--paper); backdrop-filter: blur(8px); font-family: 'Space Mono', monospace; font-size: 8px; pointer-events: none; }
 .model-frame.dimension-mode model-viewer { cursor: crosshair; }
 .model-frame.dimension-mode .viewer-hint { display: none; }
