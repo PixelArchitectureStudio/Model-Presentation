@@ -53,7 +53,7 @@
           <section class="panel-section dimensions-section">
             <div class="section-heading">
               <span class="section-index">03</span>
-              <div><h2>Dimensions</h2><p>Measure between two points on the model.</p></div>
+              <div><h2>Dimensions</h2><p>Snap two points, then place the dimension line.</p></div>
             </div>
             <button id="startDimension" class="button button-secondary full-width" type="button">Add dimension</button>
             <div id="dimensionDraft" class="dimension-draft" hidden>
@@ -77,7 +77,7 @@
               </div>
             </div>
             <div id="dimensionsList" class="dimensions-list" aria-live="polite"></div>
-            <p class="field-help">GLB uses metres internally. Measurements stay fixed to the selected 3D points.</p>
+            <p class="field-help">Nearby GLB vertices appear as snap points. After points 1 and 2, click once more to set the line offset.</p>
           </section>
 
           <section class="panel-section views-section">
@@ -104,7 +104,7 @@
             </div>
           </div>
           <div class="model-frame">
-            <model-viewer id="adminViewer" camera-controls shadow-intensity="1" exposure="1" environment-image="neutral" interaction-prompt="none" interpolation-decay="120" alt="3D architectural model preview">
+            <model-viewer id="adminViewer" camera-controls shadow-intensity="1" exposure="1" environment-image="neutral" interaction-prompt="none" interpolation-decay="80" alt="3D architectural model preview">
               <div class="model-empty" slot="poster"><span>GLB</span><p>Upload a web-ready model to begin.</p></div>
               <div class="model-progress" slot="progress-bar"><span></span></div>
             </model-viewer>
