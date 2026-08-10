@@ -2,12 +2,14 @@
 
 A GitHub-only architectural presentation system with two interfaces:
 
-- `admin.html`: upload a GLB model, optionally archive its SKP source, capture and rename camera views, attach notes, publish, copy a client link, and export its QR code.
-- `view.html?id=project-id`: public read-only model presentation with curated views, architect notes, and GitHub-backed client discussion threads.
+- `admin.html`: upload a GLB model, optionally archive its SKP source, add vertex-snapped three-click dimensions, capture and rename camera views, attach notes, publish, copy a client link, and export its QR code.
+- `view.html?id=project-id`: public read-only model presentation with curated views, architect notes, saved dimensions, and GitHub-backed client discussion threads.
 
 ## Important format note
 
 Browsers cannot render SketchUp `.skp` files directly. Export a `.glb` presentation file from SketchUp and optionally upload the original `.skp` as an archived source file.
+
+GLB coordinates use metres. In Dimension mode, nearby model vertices appear as snap points: choose two measurement points, then click a third time to place the offset dimension line. Measurements can be displayed as metres, centimetres, or millimetres. Clients can show or hide them but cannot edit them.
 
 ## GitHub setup
 
