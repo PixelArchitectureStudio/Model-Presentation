@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 2,
+  "slug": "test-01",
+  "name": "Test 01",
+  "note": "",
+  "modelPath": "projects/test-01/model.glb",
+  "sourcePath": null,
+  "repository": {
+    "owner": "PixelArchitectureStudio",
+    "name": "Model-Presentation"
+  },
+  "updatedAt": "2026-08-10T09:14:31.203Z",
+  "views": [
+    {
+      "id": "ce28104c-8dfd-4205-8ff2-54eba48397f5",
+      "name": "View 1",
+      "note": "",
+      "orbit": "0.9489319286800924rad 1.554602849948242rad 10.783390105213883m",
+      "target": "44.39587490561928m 1.5625000282542223m -2.4874998920189615m",
+      "fieldOfView": "20.109601381069183deg",
+      "issueNumber": null
+    },
+    {
+      "id": "710ffe2e-b419-4d1a-b8b5-0330d4a1c77e",
+      "name": "View 2",
+      "note": "",
+      "orbit": "-4.309267346711956rad 2.425387443325269rad 13.476054342847544m",
+      "target": "44.39587490561928m 1.5625000282542223m -2.4874998920189615m",
+      "fieldOfView": "30.000000000000004deg",
+      "issueNumber": null
+    }
+  ],
+  "dimensions": []
+}
